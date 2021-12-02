@@ -1,7 +1,5 @@
 dt <-  read.table(file="ucnaSem1.txt", sep=",", header=T, stringsAsFactors = T)
 
-asd <- c(1,2,3)
-
 # Popravimo datum
 dt$datum <- as.Date(dt$datum, "%Y-%m-%d")
 
@@ -85,8 +83,9 @@ summary(dt$padavine_k)
 
 # -------- Vizualizacija podatkov ----------
 # Vizualizacija namembnosti
+# ZA POPRAVIT: tukaj vizualiziramo koliko *merjenj porabe* smo naredili v stavbah, ne koliko stavb imamo
+# za posamezno namembnost
 plot(dt$namembnost, xlab="Tip zgradbe", ylab="Frekvenca glede na tip", main="Frekvenca po namembnosti")
-summary(dt$namembnost)
 
 
 # Odstotek izobrazevalnih v primerjavi z drugimi
@@ -109,10 +108,11 @@ povpPorabaNam
 plot(povpPorabaNam, ylab="Povprecna poraba v kWh", main="Povprecna poraba glede na namembnost.")
 # Skupno najvec porabijo izobrazevalne zgradbe, vendar povprecno pa najvec porabijo poslovne
 
-#
+#Povprecna poraba po letnem casu
 meanPorabaLet <- aggregate(as.double(poraba) ~ letni_cas, data=dt, mean)
 meanPorabaLet
 plot(meanPorabaLet, xlab="Letni cas", ylab="Povprecna poraba v kWh", main="Povprecna poraba glede na letni cas")
+#Opazanja: v letnih casih z ekstremnimi temperaturami (poletje, zima) imamo vecjo porabo (hlajenje in segrevanje)
 
 # Povprecna poraba glede na povrsino
 meanPorabaPovr <- aggregate(as.double(poraba) ~ povrsina, data=dt, mean)
@@ -121,14 +121,32 @@ plot(meanPorabaPovr, xlab="Povrsina", ylab="Povprecna poraba v kWh", main="Povpr
 
 # Visoka korelacija porabe s povrsino???
 cor(dt$poraba, dt$povrsina)
-
+# Oprazanja: stavbe z vecjo povrsino naceloma porabijo tudi povprecno vec energije
 
 # Povprecna poraba glede na vikend ali ne
-vikendSel <- dt$vikend == TRUE
 
-vikendPoraba <- dt$poraba[vikendSel]
-mean(dt[vikendPoraba, "poraba"])
-mean(dt[!vikendPoraba, "poraba"])
+names(summary(dt$namembnost)) -> namembnosti
+
+rm(jeVikend, niVikend)
+jeVikend <- c()
+niVikend <- c()
+for (ime in namembnosti){
+  v1 <- dt$vikend == TRUE & dt$namembnost == ime
+  v2 <- dt$vikend == FALSE & dt$namembnost == ime
+  
+  jeVikend <- c(jeVikend, mean(dt[dt$poraba[v1], "poraba"]))
+  niVikend <- c(niVikend, mean(dt[dt$poraba[v2], "poraba"]))
+}
+
+df1 <- data.frame(namembnosti, jeVikend, niVikend)
+summary(df1)
+
+barplot(t(as.matrix(df1[, 2:3])), 
+        beside = TRUE,
+        names.arg = df1$namembnosti,
+        legend.text = T,
+        ylim = c(0, 270),
+        ylab = "Poraba v KW")
 
 
 # Nadpovprecna ali podpovprecna poraba
@@ -222,49 +240,49 @@ wrapper(namembnost ~ ., dt, myTrainFunc, myPredictFuncProb, myEvalFuncBrier, cvf
 
 
 
-#IMPORT testna mnozica
+# ------- Dodajanje testne mnozice v R
 test <-  read.table(file="testnaSem1.txt", sep=",", header=T, stringsAsFactors = T)
-
+#Popravimo datum
 test$datum <- as.Date(test$datum, "%Y-%m-%d")
-
 # Dodajanje atributa vikend
 dan1 <- weekdays(test$datum)
-
 sobota1 <- dan1 == "Saturday"
 nedelja1 <- dan1 == "Sunday"
 vikend1 <- sobota1|nedelja1
 vikend1
-
 test$vikend <- vikend1
-
 typeof(dt$vikend)
 
+#Dodajanje atributa letni cas
 letni_cas <- getSeason(test$datum)
 test$letni_cas <- letni_cas
-# Letni cas je char zato ga se faktoriziramo
 test$letni_cas <- as.factor(test$letni_cas)
 
-
+# Dodajanje atributa smer vetra
 smer_vetra1 <- getWindDirection(test$smer_vetra)
 smer_vetra1 <- as.factor(smer_vetra1)
 
 test$smer_vetra1 <- smer_vetra1
 
+# Klasificiranje atributa padavine
 padavine_k <- kategorizirajPadavine(test$padavine)
 test$padavine_k <- as.factor(padavine_k)
 summary(test$padavine_k)
 
-
+# Sestavljanje modelov z razlicnimi atributi
+# Smiselni atributi z visokim GainRatio
 modelDT <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra + vikend, dt, model="tree")
 modelNB <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra + vikend, dt, model="bayes")
 modelKNN <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra + vikend, dt, model="knn", kInNN = 5)
 
 
-modelDT <- CoreModel(namembnost ~ povrsina + leto_izgradnje + regija + poraba, dt, model="tree")
-modelNB <- CoreModel(namembnost ~ povrsina + leto_izgradnje + regija + poraba, dt, model="bayes")
-modelKNN <- CoreModel(namembnost ~ povrsina + leto_izgradnje + regija + poraba, dt, model="knn", kInNN = 5)
+modelDT <- CoreModel(namembnost ~ povrsina + leto_izgradnje + regija, dt, model="tree")
+modelNB <- CoreModel(namembnost ~ povrsina + leto_izgradnje + regija, dt, model="bayes")
+modelKNN <- CoreModel(namembnost ~ povrsina + leto_izgradnje + regija, dt, model="knn", kInNN = 5)
 
-
+modelDT <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra, dt, model="tree")
+modelNB <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra, dt, model="bayes")
+modelKNN <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra, dt, model="knn", kInNN = 5)
 
 CA <- function(observed, predicted)
 {
@@ -282,17 +300,6 @@ caNB
 predKNN <- predict(modelKNN, test, type="class")
 caKNN <- CA(test$namembnost, predKNN)
 caKNN
-
-modelDT <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra, dt, model="tree")
-modelNB <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra, dt, model="bayes")
-modelKNN <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra, dt, model="knn", kInNN = 2)
-
-
-
-
-
-
-
 
 
 
