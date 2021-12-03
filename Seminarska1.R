@@ -83,7 +83,7 @@ summary(dt$padavine_k)
 
 # -------- Vizualizacija podatkov ----------
 # Vizualizacija namembnosti
-# ZA POPRAVIT: tukaj vizualiziramo koliko *merjenj porabe* smo naredili v stavbah, ne koliko stavb imamo
+# tukaj vizualiziramo koliko *merjenj porabe* smo naredili v stavbah, ne koliko stavb imamo
 # za posamezno namembnost
 plot(dt$namembnost, xlab="Tip zgradbe", ylab="Frekvenca glede na tip", main="Frekvenca po namembnosti")
 
@@ -121,9 +121,9 @@ plot(meanPorabaPovr, xlab="Povrsina", ylab="Povprecna poraba v kWh", main="Povpr
 
 # Visoka korelacija porabe s povrsino???
 cor(dt$poraba, dt$povrsina)
-# Oprazanja: stavbe z vecjo povrsino naceloma porabijo tudi povprecno vec energije
+# Oprazanja: stavbe z vecjo povrsino naceloma porabijo povprecno vec energije
 
-# Povprecna poraba glede na vikend ali ne
+# Povprecna poraba glede na vikend ali cez teden
 
 names(summary(dt$namembnost)) -> namembnosti
 
@@ -148,6 +148,9 @@ barplot(t(as.matrix(df1[, 2:3])),
         ylim = c(0, 270),
         ylab = "Poraba v KW")
 
+# Ugotovitve: Vidimo, da se poraba v izobrazevalnih ustanovah ter v poslovnih
+# zgradbah cez vikend ne spremeni bistveno
+
 
 # Nadpovprecna ali podpovprecna poraba
 nadpovp <- table(dt$poraba > mean(dt$poraba))
@@ -167,7 +170,7 @@ sort(attrEval(namembnost ~ ., dt, "InfGain"), decreasing = TRUE)
 odl <- CoreModel(namembnost ~ ., dt, model="tree", selectionEstimator="InfGain")
 plot(odl, dt)
 
-sort(attrEval(namembnost ~ povrsina+regija+leto_izgradnje, dt, "Gini"), decreasing = TRUE)
+sort(attrEval(namembnost ~ ., dt, "Gini"), decreasing = TRUE)
 
 sort(attrEval(namembnost ~ ., dt, "GainRatio"), decreasing = TRUE)
 
@@ -240,7 +243,7 @@ wrapper(namembnost ~ ., dt, myTrainFunc, myPredictFuncProb, myEvalFuncBrier, cvf
 
 
 
-# ------- Dodajanje testne mnozice v R
+# ------- Dodajanje testne mnozice v R --------
 test <-  read.table(file="testnaSem1.txt", sep=",", header=T, stringsAsFactors = T)
 #Popravimo datum
 test$datum <- as.Date(test$datum, "%Y-%m-%d")
@@ -301,7 +304,8 @@ predKNN <- predict(modelKNN, test, type="class")
 caKNN <- CA(test$namembnost, predKNN)
 caKNN
 
-
+# Ugotovitve: nobeden od doblenih modelov od vseh uporabljenih razlicnih mnozic atributov
+# ni uporaben
 
 
 
