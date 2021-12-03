@@ -283,6 +283,12 @@ summary(test$padavine_k)
 #  Sestavljanje in ocenjevanje modelov  #
 #########################################
 
+
+CA <- function(observed, predicted)
+{
+  mean(observed == predicted)
+}
+
 # Modeli zgrajeni z atributi, ki jih je podal wrapper z nakljucnim seed-om 
 modelDT <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + padavine_k + pritisk + smer_vetra1 + hitrost_vetra + vikend , dt, model="tree")
 # 0.4922659
@@ -299,10 +305,6 @@ modelNB <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka, dt, mo
 modelKNN <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka, dt, model="knn", kInNN = 5)
 #0.4320652
 
-CA <- function(observed, predicted)
-{
-  mean(observed == predicted)
-}
 
 predDT <- predict(modelDT, test, type = "class")
 caDT <- CA(test$namembnost, predDT)
@@ -315,6 +317,54 @@ caNB
 predKNN <- predict(modelKNN, test, type="class")
 caKNN <- CA(test$namembnost, predKNN)
 caKNN
+
+
+dtVzhod <- dt[dt$regija == "vzhodna",]
+dtZahod <- dt[dt$regija == "zahodna",]
+
+# Vzhodna regija
+modelDTVzhod <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka, dtVzhod, model="tree")
+# 0.4708612
+modelNBVzhod <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka, dtVzhod, model="bayes")
+# 0.5094482
+modelKNNVzhod <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka, dtVzhod, model="knn", kInNN = 5)
+# 0.4947324
+
+
+predDTVzhod <- predict(modelDTVzhod, test, type = "class")
+caDTVzhod <- CA(test$namembnost, predDTVzhod)
+caDTVzhod
+
+predNBVzhod <- predict(modelNBVzhod, test, type="class")
+caNBVzhod <- CA(test$namembnost, predNBVzhod)
+caNBVzhod
+
+predKNNVzhod <- predict(modelKNNVzhod, test, type="class")
+caKNNVzhod <- CA(test$namembnost, predKNNVzhod)
+caKNNVzhod
+
+# Zahodna regija
+modelDTZahod <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka, dtZahod, model="tree")
+# 0.290301
+modelNBZahod <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka, dtZahod, model="bayes")
+# 0.4109532
+modelKNNZahod <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka, dtZahod, model="knn", kInNN = 5)
+# 0.3460702
+
+predDTZahod <- predict(modelDTZahod, test, type = "class")
+caDTZahod <- CA(test$namembnost, predDTZahod)
+caDTZahod
+
+predNBZahod <- predict(modelNBZahod, test, type="class")
+caNBZahod <- CA(test$namembnost, predNBZahod)
+caNBZahod
+
+predKNNZahod <- predict(modelKNNZahod, test, type="class")
+caKNNZahod <- CA(test$namembnost, predKNNZahod)
+caKNNZahod
+#
+# Zahodna regija ima bistveno slabše rezultate kot vzhodna
+#
 
 
 ###########################################
@@ -385,6 +435,16 @@ mse(test$poraba, predicted)   # 86195.75
 rmae(test$poraba, predicted, mean(dt$poraba)) # 0.7933414
 rmse(test$poraba, predicted, mean(dt$poraba)) # 1.90684
 
+# vzhodna regija
+modelReduced <- train.kknn(poraba ~ povrsina + temp_zraka + leto_izgradnje + letni_cas + vikend + namembnost + regija, dtVzhod, ks=5)
+predictedV <- predict(modelReduced, test)
+mae(test$poraba, predictedV)   # 152.3002
+mse(test$poraba, predictedV)   # 111519
+rmae(test$poraba, predictedV, mean(dtVzhod$poraba)) # 0.8322077
+rmse(test$poraba, predictedV, mean(dtVzhod$poraba)) # 2.169097
+
+
+
 #svm
 library(e1071)
 svm.model <- svm(poraba ~ povrsina + temp_zraka + leto_izgradnje + letni_cas + vikend + namembnost + regija, dt)
@@ -393,6 +453,16 @@ mae(test$poraba, predicted) # 112.2171
 mse(test$poraba, predicted) # 46412.86
 rmae(test$poraba, predicted, mean(dt$poraba)) # 0.7024651
 rmse(test$poraba, predicted, mean(dt$poraba)) # 1.026755
+
+# vhodna regija
+svm.model <- svm(poraba ~ povrsina + temp_zraka + leto_izgradnje + letni_cas + vikend + namembnost + regija, dtVzhod)
+predictedV <- predict(svm.model, test)
+mae(test$poraba, predictedV) # 140.4451
+mse(test$poraba, predictedV) # 47498.04
+rmae(test$poraba, predictedV, mean(dtVzhod$poraba)) # 0.7674285
+rmse(test$poraba, predictedV, mean(dtVzhod$poraba)) # 0.9238594
+
+
 
 # nakljucni gozd
 library(randomForest)
@@ -403,6 +473,115 @@ mae(test$poraba, predicted) # 92.4099
 mse(test$poraba, predicted) # 26302.14
 rmae(test$poraba, predicted, mean(dt$poraba)) # 0.5784746
 rmse(test$poraba, predicted, mean(dt$poraba)) # 0.5818612
+
+# vzhodna regija
+set.seed(0) # Pomembno
+rf.model <- randomForest(poraba ~ povrsina + temp_zraka + leto_izgradnje + letni_cas + vikend + namembnost + regija, dtVzhod)
+predictedV <- predict(rf.model, test)
+mae(test$poraba, predictedV) # 150.0842
+mse(test$poraba, predictedV) # 58171.93
+rmae(test$poraba, predictedV, mean(dtVzhod$poraba)) # 0.820099
+rmse(test$poraba, predictedV, mean(dtVzhod$poraba)) # 1.131472
+
+
+############################
+#   Kombiniranje modelov   #
+############################
+
+#
+# Glasovanje
+#
+
+# zdruzimo napovedi posameznih modelov v en podatkovni okvir
+pred <- data.frame(predDT, predNB, predKNN)
+predV <- data.frame(predDTVzhod, predNBVzhod, predKNNVzhod)
+
+head(pred)
+head(predV)
+
+# testni primer klasificiramo v razred z najvec glasovi
+voting <- function(predictions)
+{
+  res <- vector()
+  
+  for (i in 1 : nrow(predictions))  	
+  {
+    vec <- unlist(predictions[i,])
+    res[i] <- names(which.max(table(vec)))
+  }
+  
+  res
+}
+
+predClass <- voting(pred)
+predClassV <- voting(predV)
+head(predClass)
+head(predClassV)
+
+predicted <- factor(predClass, levels=levels(dt$namembnost))
+predictedV <- factor(predClass, levels=levels(dtVzhod$namembnost))
+head(predicted)
+head(predictedV)
+
+CA(test$namembnost, predicted) # 0.5207
+CA(test$namembnost, predictedV) # 0.5025084
+
+
+#
+# Utezeno glasovanje
+#
+
+predDT.prob <- predict(modelDT, test, type="prob")
+predNB.prob <- predict(modelNB, test, type="prob")
+predKNN.prob <- predict(modelKNN, test, type="prob")
+
+predDTVzhod.prob <- predict(modelDTVzhod, test, type="prob")
+predNBVzhod.prob <- predict(modelNBVzhod, test, type="prob")
+predKNNVzhod.prob <- predict(modelKNNVzhod, test, type="prob")
+
+# sestejemo napovedane verjetnosti s strani razlicnih modelov
+predProb <- predDT.prob + predNB.prob + predKNN.prob
+predProbV <- predDTVzhod.prob + predNBVzhod.prob + predKNNVzhod.prob
+
+head(predProb)
+
+head(max.col(predProb))
+
+# izberemo razred z najvecjo verjetnostjo
+predClass <- colnames(predProb)[max.col(predProb)]
+predicted <- factor(predClass, levels(dt$namembnost))
+head(predicted)
+
+predClassV <- colnames(predProbV)[max.col(predProbV)]
+predicted <- factor(predClassV, levels(dtVzhod$namembnost))
+
+CA(test$namembnost, predicted) # 0.5025084
+CA(test$namembnost, predictedV) # 0.5025084
+
+#
+# Boosting
+#
+
+# install.packages("adabag")
+library(adabag)
+
+bm <- boosting(namembnost ~ ., dt, mfinal=100) 
+predictions <- predict(bm, test)
+
+bmV <- boosting(namembnost ~ ., dtVzhod, mfinal=100) 
+predictionsV <- predict(bmV, test)
+
+names(predictions)
+
+predicted <- predictions$class
+predictedV <- predictionsV$class
+
+
+CA(test$namembnost, predicted) # 0.4926003
+CA(test$namembnost, predictedV) # 0.365092
+
+
+
 
 
 
