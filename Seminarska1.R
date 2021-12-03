@@ -1,3 +1,12 @@
+#########################################################
+#  Seminarska naloga 1 pri predmetu Umetna Inteligenca  #
+#########################################################
+
+
+##############################
+#   Dodajanje ucne mnozice   #
+##############################
+
 dt <-  read.table(file="ucnaSem1.txt", sep=",", header=T, stringsAsFactors = T)
 
 # Popravimo datum
@@ -80,8 +89,9 @@ padavine_k <- kategorizirajPadavine(dt$padavine)
 dt$padavine_k <- as.factor(padavine_k)
 summary(dt$padavine_k)
 
+
 ##############################################
-# -------- Vizualizacija podatkov ----------
+# -------- Vizualizacija podatkov ---------- #
 ##############################################
 
 # Vizualizacija namembnosti
@@ -160,9 +170,9 @@ names(nadpovp) <- c("Podpovprecna poraba", "Nadpovprecna poraba")
 pie(nadpovp, main="Razmerje")
 
 
-#################################
-#    Ocenjevanje atributov      #
-#################################
+###############################################
+#    Ocenjevanje atributov - klasifikacija    #
+###############################################
 
 # Ocenjujemo s pomocjo paketa CORElearn
 library(CORElearn)
@@ -212,8 +222,6 @@ myEvalFunc <- function(predicted, observed, trained)
   1.0 - mean(observed == predicted)	
 }
 
-
-
 #Z wrapperjem preverimo kar vse atribute 
 # (brez tistih, iz katerih smo izpeljali druge in brez indeksnih)
 set.seed(0)
@@ -237,7 +245,11 @@ wrapper(namembnost ~ regija+povrsina+leto_izgradnje+temp_zraka+temp_rosisca+obla
 # best model: estimated error =  0.01229021 selected feature subset =  namembnost ~ povrsina + leto_izgradnje + temp_zraka 
 # selected feature subset =  namembnost ~ povrsina + leto_izgradnje + temp_zraka
 
-# ------- Dodajanje testne mnozice v R --------
+
+################################
+#   Dodajanje testne mnozice   #
+################################
+
 test <-  read.table(file="testnaSem1.txt", sep=",", header=T, stringsAsFactors = T)
 #Popravimo datum
 test$datum <- as.Date(test$datum, "%Y-%m-%d")
@@ -266,9 +278,12 @@ padavine_k <- kategorizirajPadavine(test$padavine)
 test$padavine_k <- as.factor(padavine_k)
 summary(test$padavine_k)
 
-# Sestavljanje modelov z razlicnimi atributi
 
-# Modeli zgrajeni z atributi, ki jih je podal wrapper v prvem primeru
+#########################################
+#  Sestavljanje in ocenjevanje modelov  #
+#########################################
+
+# Modeli zgrajeni z atributi, ki jih je podal wrapper z nakljucnim seed-om 
 modelDT <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + padavine_k + pritisk + smer_vetra1 + hitrost_vetra + vikend , dt, model="tree")
 # 0.4922659
 modelNB <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + padavine_k + pritisk + smer_vetra1 + hitrost_vetra + vikend , dt, model="bayes")
@@ -276,7 +291,7 @@ modelNB <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_
 modelKNN <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + padavine_k + pritisk + smer_vetra1 + hitrost_vetra + vikend , dt, model="knn", kInNN = 5)
 # 0.4815635
 
-# Modeli zgrajeni z atributi, ki jih je podal wrapper v drugem primeru
+# Modeli zgrajeni z atributi, ki jih je podal wrapper z seed = 0
 modelDT <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka, dt, model="tree")
 # 0.4922659
 modelNB <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka, dt, model="bayes")
@@ -301,13 +316,10 @@ predKNN <- predict(modelKNN, test, type="class")
 caKNN <- CA(test$namembnost, predKNN)
 caKNN
 
-# Ugotovitve: nobeden od doblenih modelov od vseh uporabljenih razlicnih mnozic atributov
-# ni uporaben, saj bi bil vecinski klasifikator boljsi
 
-
-############################
-#     Ocenjevanje porabe   #
-############################
+###########################################
+#    Ocenjevanje atributov - regresija    #
+###########################################
 
 mae <- function(obs, pred)
 {
@@ -352,16 +364,6 @@ myEvalFuncRMSE <- function(predicted, observed, trained)
   sum((observed - predicted)^2)/sum((observed - mean(trained))^2)	
 }
 
-set.seed(0)
-wrapper(poraba ~ regija + namembnost + povrsina + leto_izgradnje + oblacnost + padavine_k + padavine, dt, myTrainFuncReg, myPredictFuncReg, myEvalFuncRMSE, cvfolds=10)
-# rezultat wrapperja
-#selected feature subset =  poraba ~ povrsina + leto_izgradnje + oblacnost + regija + namembnost 
-
-
-wrapper(poraba ~ ., dt, myTrainFuncReg, myPredictFuncReg, myEvalFuncRMSE, cvfolds=10)
-# rezultat wrapperja vseh atributov
-# poraba ~ stavba + letni_cas + vikend + povrsina + datum + leto_izgradnje + namembnost + regija
-
 
 # tukaj sem dal po vrsti (ta smiselne) kot mi jih je dal RReliefFexpRank
 set.seed(0)
@@ -369,6 +371,10 @@ wrapper(poraba ~ povrsina + leto_izgradnje + namembnost + regija + padavine_k + 
 # rezultat wrapperja
 # poraba ~ povrsina + temp_zraka + leto_izgradnje + letni_cas + vikend + namembnost + regija
 
+
+#########################################
+#  Sestavljanje in ocenjevanje modelov  #
+#########################################
 
 # k najblizji
 library(kknn)
@@ -378,7 +384,6 @@ mae(test$poraba, predicted)   # 126.7343
 mse(test$poraba, predicted)   # 86195.75
 rmae(test$poraba, predicted, mean(dt$poraba)) # 0.7933414
 rmse(test$poraba, predicted, mean(dt$poraba)) # 1.90684
-
 
 #svm
 library(e1071)
