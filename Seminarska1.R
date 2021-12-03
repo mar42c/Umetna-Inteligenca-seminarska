@@ -307,6 +307,90 @@ caKNN
 # Ugotovitve: nobeden od doblenih modelov od vseh uporabljenih razlicnih mnozic atributov
 # ni uporaben
 
+############################
+#     Ocenjevanje porabe   #
+############################
+
+mae <- function(obs, pred)
+{
+  mean(abs(obs - pred))
+}
+
+# srednja kvadratna napaka
+mse <- function(obs, pred)
+{
+  mean((obs - pred)^2)
+}
+
+# relativna srednja absolutna napaka
+rmae <- function(obs, pred, mean.val) 
+{  
+  sum(abs(obs - pred)) / sum(abs(obs - mean.val))
+}
+
+# relativna srednja kvadratna napaka
+rmse <- function(obs, pred, mean.val) 
+{  
+  sum((obs - pred)^2)/sum((obs - mean.val)^2)
+}
+
+library(CORElearn)
+sort(attrEval(poraba ~ ., dt, "MSEofMean"), decreasing = TRUE)
+sort(attrEval(poraba ~ ., dt, "RReliefFexpRank"), decreasing = TRUE)
+
+source("wrapper.R")
+myTrainFuncReg <- function(formula, traindata)
+{
+  train.kknn(formula, traindata, ks=5)
+}
+
+myPredictFuncReg <- function(model, testdata)
+{
+  predict(model, testdata)
+}
+
+myEvalFuncRMSE <- function(predicted, observed, trained)
+{
+  sum((observed - predicted)^2)/sum((observed - mean(trained))^2)	
+}
+
+set.seed(0)
+wrapper(poraba ~ regija + namembnost + povrsina + leto_izgradnje + oblacnost + padavine_k + padavine, dt, myTrainFuncReg, myPredictFuncReg, myEvalFuncRMSE, cvfolds=10)
+# rezultat wrapperja
+#selected feature subset =  poraba ~ povrsina + leto_izgradnje + oblacnost + regija + namembnost 
+
+wrapper(poraba ~ ., dt, myTrainFuncReg, myPredictFuncReg, myEvalFuncRMSE, cvfolds=10)
+# rezultat wrapperja vseh atributov
+# poraba ~ stavba + letni_cas + vikend + povrsina + datum + leto_izgradnje + namembnost + regija
+
+# k najblizji
+library(kknn)
+modelReduced <- train.kknn(poraba ~ povrsina + leto_izgradnje + oblacnost + regija + namembnost, dt, ks=5)
+predicted <- predict(modelReduced, testData)
+rmse(testData$poraba, predicted, mean(dt$poraba))
+
+#svm
+library(e1071)
+svm.model <- svm(poraba ~ povrsina + leto_izgradnje + oblacnost + regija + namembnost, dt)
+predicted <- predict(svm.model, testData)
+mae(testData$poraba, predicted)
+rmae(testData$poraba, predicted, mean(dt$poraba))
+
+# nakljucni gozd
+library(randomForest)
+rf.model <- randomForest(poraba ~ povrsina + leto_izgradnje + oblacnost + regija + namembnost, dt)
+predicted <- predict(rf.model, testData)
+mae(testData$poraba, predicted)
+rmae(testData$poraba, predicted, mean(dt$poraba))
+
+
+
+
+
+
+
+
+
 
 
 
