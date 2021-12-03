@@ -80,8 +80,10 @@ padavine_k <- kategorizirajPadavine(dt$padavine)
 dt$padavine_k <- as.factor(padavine_k)
 summary(dt$padavine_k)
 
-
+##############################################
 # -------- Vizualizacija podatkov ----------
+##############################################
+
 # Vizualizacija namembnosti
 # tukaj vizualiziramo koliko *merjenj porabe* smo naredili v stavbah, ne koliko stavb imamo
 # za posamezno namembnost
@@ -180,24 +182,16 @@ odl <- CoreModel(namembnost ~ ., dt, model="tree", selectionEstimator="MDL")
 plot(odl, dt)
 
 sort(attrEval(namembnost ~ ., dt, "InfGain", binaryEvaluation=T), decreasing = T)
+
 sort(attrEval(namembnost ~ ., dt, "Gini", binaryEvaluation=T), decreasing = T)
 
-
-
-library(rpart)
-
-modelFull <- rpart(namembnost ~ ., dt)
-predicted <- predict(modelFull, dt, type="class")
-mean(dt$namembnost == predicted)
-
-
 source("wrapper.R")
+library(rpart)
 
 myTrainFunc <- function(formula, traindata)
 {
   rpart(formula, traindata)	
 }
-
 
 #
 # Funkcija za pridobivanje napovedi modela (razredi)
@@ -207,7 +201,6 @@ myPredictFunc <- function(model, testdata)
 {
   predict(model, testdata, type="class")
 }
-
 
 #
 # Atribute lahko izberemo glede na klasifikacijsko tocnost modela
@@ -219,13 +212,14 @@ myEvalFunc <- function(predicted, observed, trained)
   1.0 - mean(observed == predicted)	
 }
 
+
+
+#Z wrapperjem preverimo kar vse atribute 
+# (brez tistih, iz katerih smo izpeljali druge in brez indeksnih)
 set.seed(0)
 wrapper(namembnost ~ regija+povrsina+leto_izgradnje+temp_zraka+temp_rosisca+oblacnost+padavine_k+pritisk+smer_vetra1+hitrost_vetra+poraba+vikend+letni_cas, dt, myTrainFunc, myPredictFunc, myEvalFunc, cvfolds=10)
-
-# testirajmo na neodvisni testni mnozici
-modelWrap <- rpart(namembnost ~ povrsina + leto_izgradnje + datum + temp_zraka + temp_rosisca, dt)
-predicted <- predict(modelWrap, dt, type="class")
-mean(dt$namembnost == predicted)
+# best model: estimated error =  0.007502428 selected feature subset =  namembnost ~ povrsina + leto_izgradnje + temp_zraka 
+# selected feature subset =  namembnost ~ povrsina + leto_izgradnje + temp_zraka
 
 myPredictFuncProb <- function(model, testdata)
 {
@@ -239,9 +233,9 @@ myEvalFuncBrier <- function(predicted, observed, trained)
 }
 
 set.seed(0)
-wrapper(namembnost ~ ., dt, myTrainFunc, myPredictFuncProb, myEvalFuncBrier, cvfolds=10)
-
-
+wrapper(namembnost ~ regija+povrsina+leto_izgradnje+temp_zraka+temp_rosisca+oblacnost+padavine_k+pritisk+smer_vetra1+hitrost_vetra+poraba+vikend+letni_cas, dt, myTrainFunc, myPredictFuncProb, myEvalFuncBrier, cvfolds=10)
+# best model: estimated error =  0.01229021 selected feature subset =  namembnost ~ povrsina + leto_izgradnje + temp_zraka 
+# selected feature subset =  namembnost ~ povrsina + leto_izgradnje + temp_zraka
 
 # ------- Dodajanje testne mnozice v R --------
 test <-  read.table(file="testnaSem1.txt", sep=",", header=T, stringsAsFactors = T)
@@ -273,19 +267,22 @@ test$padavine_k <- as.factor(padavine_k)
 summary(test$padavine_k)
 
 # Sestavljanje modelov z razlicnimi atributi
-# Smiselni atributi z visokim GainRatio
-modelDT <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra + vikend, dt, model="tree")
-modelNB <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra + vikend, dt, model="bayes")
-modelKNN <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra + vikend, dt, model="knn", kInNN = 5)
 
+# Modeli zgrajeni z atributi, ki jih je podal wrapper v prvem primeru
+modelDT <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + padavine_k + pritisk + smer_vetra1 + hitrost_vetra + vikend , dt, model="tree")
+# 0.4922659
+modelNB <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + padavine_k + pritisk + smer_vetra1 + hitrost_vetra + vikend , dt, model="bayes")
+# 0.4330686
+modelKNN <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + padavine_k + pritisk + smer_vetra1 + hitrost_vetra + vikend , dt, model="knn", kInNN = 5)
+# 0.4815635
 
-modelDT <- CoreModel(namembnost ~ povrsina + leto_izgradnje + regija, dt, model="tree")
-modelNB <- CoreModel(namembnost ~ povrsina + leto_izgradnje + regija, dt, model="bayes")
-modelKNN <- CoreModel(namembnost ~ povrsina + leto_izgradnje + regija, dt, model="knn", kInNN = 5)
-
-modelDT <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra, dt, model="tree")
-modelNB <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra, dt, model="bayes")
-modelKNN <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka + temp_rosisca + oblacnost + pritisk + hitrost_vetra, dt, model="knn", kInNN = 5)
+# Modeli zgrajeni z atributi, ki jih je podal wrapper v drugem primeru
+modelDT <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka, dt, model="tree")
+# 0.4922659
+modelNB <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka, dt, model="bayes")
+# 0.4508779
+modelKNN <- CoreModel(namembnost ~ povrsina + leto_izgradnje + temp_zraka, dt, model="knn", kInNN = 5)
+#0.4320652
 
 CA <- function(observed, predicted)
 {
@@ -305,7 +302,8 @@ caKNN <- CA(test$namembnost, predKNN)
 caKNN
 
 # Ugotovitve: nobeden od doblenih modelov od vseh uporabljenih razlicnih mnozic atributov
-# ni uporaben
+# ni uporaben, saj bi bil vecinski klasifikator boljsi
+
 
 ############################
 #     Ocenjevanje porabe   #
@@ -359,36 +357,47 @@ wrapper(poraba ~ regija + namembnost + povrsina + leto_izgradnje + oblacnost + p
 # rezultat wrapperja
 #selected feature subset =  poraba ~ povrsina + leto_izgradnje + oblacnost + regija + namembnost 
 
+
 wrapper(poraba ~ ., dt, myTrainFuncReg, myPredictFuncReg, myEvalFuncRMSE, cvfolds=10)
 # rezultat wrapperja vseh atributov
 # poraba ~ stavba + letni_cas + vikend + povrsina + datum + leto_izgradnje + namembnost + regija
 
+
+# tukaj sem dal po vrsti (ta smiselne) kot mi jih je dal RReliefFexpRank
+set.seed(0)
+wrapper(poraba ~ povrsina + leto_izgradnje + namembnost + regija + padavine_k + letni_cas + vikend + temp_zraka + pritisk + hitrost_vetra + temp_rosisca + oblacnost, dt, myTrainFuncReg, myPredictFuncReg, myEvalFuncRMSE, cvfolds=10)
+# rezultat wrapperja
+# poraba ~ povrsina + temp_zraka + leto_izgradnje + letni_cas + vikend + namembnost + regija
+
+
 # k najblizji
 library(kknn)
-modelReduced <- train.kknn(poraba ~ povrsina + leto_izgradnje + oblacnost + regija + namembnost, dt, ks=5)
-predicted <- predict(modelReduced, testData)
-rmse(testData$poraba, predicted, mean(dt$poraba))
+modelReduced <- train.kknn(poraba ~ povrsina + temp_zraka + leto_izgradnje + letni_cas + vikend + namembnost + regija, dt, ks=5)
+predicted <- predict(modelReduced, test)
+mae(test$poraba, predicted)   # 126.7343
+mse(test$poraba, predicted)   # 86195.75
+rmae(test$poraba, predicted, mean(dt$poraba)) # 0.7933414
+rmse(test$poraba, predicted, mean(dt$poraba)) # 1.90684
+
 
 #svm
 library(e1071)
-svm.model <- svm(poraba ~ povrsina + leto_izgradnje + oblacnost + regija + namembnost, dt)
-predicted <- predict(svm.model, testData)
-mae(testData$poraba, predicted)
-rmae(testData$poraba, predicted, mean(dt$poraba))
+svm.model <- svm(poraba ~ povrsina + temp_zraka + leto_izgradnje + letni_cas + vikend + namembnost + regija, dt)
+predicted <- predict(svm.model, test)
+mae(test$poraba, predicted) # 112.2171
+mse(test$poraba, predicted) # 46412.86
+rmae(test$poraba, predicted, mean(dt$poraba)) # 0.7024651
+rmse(test$poraba, predicted, mean(dt$poraba)) # 1.026755
 
 # nakljucni gozd
 library(randomForest)
-rf.model <- randomForest(poraba ~ povrsina + leto_izgradnje + oblacnost + regija + namembnost, dt)
-predicted <- predict(rf.model, testData)
-mae(testData$poraba, predicted)
-rmae(testData$poraba, predicted, mean(dt$poraba))
-
-
-
-
-
-
-
+set.seed(0) # Pomembno
+rf.model <- randomForest(poraba ~ povrsina + temp_zraka + leto_izgradnje + letni_cas + vikend + namembnost + regija, dt)
+predicted <- predict(rf.model, test)
+mae(test$poraba, predicted) # 92.4099
+mse(test$poraba, predicted) # 26302.14
+rmae(test$poraba, predicted, mean(dt$poraba)) # 0.5784746
+rmse(test$poraba, predicted, mean(dt$poraba)) # 0.5818612
 
 
 
